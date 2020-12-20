@@ -1,0 +1,136 @@
+version: '3'
+
+services:
+
+  proxy:
+    image: jwilder/nginx-proxy:alpine
+    restart: unless-stopped
+    environment:
+      - HTTPS_METHOD=noredirect
+    ports:
+      - '80:80'
+      - '443:443'
+    networks:
+      - backend
+    volumes:
+      - '/var/run/docker.sock:/tmp/docker.sock:ro'
+      ## Uncomment to connect ssl certificates to domains
+      # - '/etc/letsencrypt/live/admin.nextfree.com.ua/fullchain.pem:/etc/nginx/certs/nextfree.com.ua.crt'
+      # - '/etc/letsencrypt/live/admin.nextfree.com.ua/privkey.pem:/etc/nginx/certs/nextfree.com.ua.key'
+      # - '/etc/letsencrypt/live/admin.nextfree.com.ua/fullchain.pem:/etc/nginx/certs/customer.nextfree.com.ua.crt'
+      # - '/etc/letsencrypt/live/admin.nextfree.com.ua/privkey.pem:/etc/nginx/certs/customer.nextfree.com.ua.key'
+      # - '/etc/letsencrypt/live/admin.nextfree.com.ua/fullchain.pem:/etc/nginx/certs/owner.nextfree.com.ua.crt'
+      # - '/etc/letsencrypt/live/admin.nextfree.com.ua/privkey.pem:/etc/nginx/certs/owner.nextfree.com.ua.key'
+      # - '/etc/letsencrypt/live/admin.nextfree.com.ua/fullchain.pem:/etc/nginx/certs/api.nextfree.com.ua.crt'
+      # - '/etc/letsencrypt/live/admin.nextfree.com.ua/privkey.pem:/etc/nginx/certs/api.nextfree.com.ua.key'
+      # - '/etc/letsencrypt/live/admin.nextfree.com.ua/fullchain.pem:/etc/nginx/certs/admin.nextfree.com.ua.crt'
+      # - '/etc/letsencrypt/live/admin.nextfree.com.ua/privkey.pem:/etc/nginx/certs/admin.nextfree.com.ua.key'
+      # - '/etc/letsencrypt/live/admin.nextfree.com.ua/fullchain.pem:/etc/nginx/certs/staff.nextfree.com.ua.crt'
+      # - '/etc/letsencrypt/live/admin.nextfree.com.ua/privkey.pem:/etc/nginx/certs/staff.nextfree.com.ua.key'
+      # - '/etc/letsencrypt/live/admin.nextfree.com.ua/fullchain.pem:/etc/nginx/certs/storage.nextfree.com.ua.crt'
+      # - '/etc/letsencrypt/live/admin.nextfree.com.ua/privkey.pem:/etc/nginx/certs/storage.nextfree.com.ua.key'
+
+  # Start it only if you need to issue ssl certificate
+  https:
+    image: sikach/nextfree-storage:latest
+    volumes:
+      - './https:/var/www/public'
+    ports:
+      - 80:80
+
+  storage:
+    image: sikach/nextfree-storage:latest
+    restart: unless-stopped
+    environment:
+      - VIRTUAL_HOST=storage.nextfree.com.ua
+    networks:
+      - backend
+    volumes:
+      - './https:/var/www/public/.well-known/acme-challenge'
+
+  www:
+    image: sikach/nextfree-www:latest
+    restart: unless-stopped
+    environment:
+      - VIRTUAL_HOST=nextfree.com.ua,www.nextfree.com.ua
+    networks:
+      - backend
+    volumes:
+      - './https:/var/www/public/.well-known/acme-challenge'
+
+  api:
+    image: sikach/nextfree-api:latest
+    restart: unless-stopped
+    environment:
+      - VIRTUAL_HOST=api.nextfree.com.ua
+    networks:
+      - backend
+    volumes:
+      - './https:/var/www/public/.well-known/acme-challenge'
+
+  admin:
+    image: sikach/nextfree-admin:latest
+    restart: unless-stopped
+    environment:
+      - VIRTUAL_HOST=admin.nextfree.com.ua
+    networks:
+      - backend
+    volumes:
+      - './https:/var/www/build/.well-known/acme-challenge'
+
+  staff:
+    image: sikach/nextfree-staff:latest
+    restart: unless-stopped
+    environment:
+      - VIRTUAL_HOST=staff.nextfree.com.ua
+    networks:
+      - backend
+    volumes:
+      - './https:/var/www/build/.well-known/acme-challenge'
+
+  customer:
+    image: sikach/nextfree-customer:latest
+    restart: unless-stopped
+    environment:
+      - VIRTUAL_HOST=customer.nextfree.com.ua
+    networks:
+      - backend
+    volumes:
+      - './https:/var/www/build/.well-known/acme-challenge'
+
+  owner:
+    image: sikach/nextfree-owner:latest
+    restart: unless-stopped
+    environment:
+      - VIRTUAL_HOST=owner.nextfree.com.ua
+    networks:
+      - backend
+    volumes:
+      - './https:/var/www/build/.well-known/acme-challenge'
+
+  db:
+    image: mongo:4.2
+    restart: unless-stopped
+    environment:
+      - MONGO_INITDB_DATABASE=nextfree
+    networks:
+      - backend
+    volumes:
+      - '.persistency/mongo/data:/data/db'
+      - './backups:/data/backups'
+
+  dbadmin:
+    image: mongo-express:latest
+    environment:
+      ME_CONFIG_BASICAUTH_USERNAME: v.v.sikach@gmail.com
+      ME_CONFIG_BASICAUTH_PASSWORD: ****************
+      ME_CONFIG_MONGODB_SERVER: db
+      ME_CONFIG_OPTIONS_EDITORTHEME: ambiance
+    ports:
+      - 49173:8081
+    networks:
+      - backend
+
+networks:
+  backend:
+    driver: 'bridge'
